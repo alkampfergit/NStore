@@ -1,0 +1,86 @@
+pool:
+  name: 'default'
+
+trigger:
+- master
+- develop
+- release/*
+- hotfix/*
+- feature/*
+
+variables:
+  AssemblyVersion: '0.0.1'
+  solution: 'src/NStore.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+
+steps:
+
+- task: GitVersion@1
+  displayName: 'GitVersion '
+  inputs:
+    BuildNamePrefix: 'NStore BuildAndTest '
+
+- task: DotNetCoreInstaller@1
+  displayName: 'Use .NET Core sdk 2.2.207'
+  inputs:
+    version: 2.2.207
+
+#- task: PublishTestResults@1
+#  displayName: 'Publish Test Results from dotnet'
+#  inputs:
+#    testRunner: VSTest
+#    testResultsFiles: '$(Common.TestResultsDirectory)\**\*.trx '
+
+- task: DotNetCoreCLI@2
+  displayName: 'dotnet restore'
+  inputs:
+    command: restore
+    projects: '$(solution)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'dotnet build'
+  inputs:
+    command: build
+    projects: '$(solution)'
+    configuration: '$(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'dotnet test core'
+  inputs:
+    command: test
+    arguments: '--no-build'
+    projects: 'src\NStore.Core.Tests\NStore.Core.Tests.csproj'
+    configuration: '$(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'dotnet test Mongodb'
+  inputs:
+    command: test
+    arguments: '--no-build'
+    projects: 'src\NStore.Persistence.Mongo.Tests\NStore.Persistence.Mongo.Tests.csproj'
+    configuration: '$(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'dotnet test MsSql'
+  inputs:
+    command: test
+    arguments: '--no-build'
+    projects: 'src\NStore.Persistence.MsSql.Tests\NStore.Persistence.MsSql.Tests.csproj'
+    configuration: '$(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'dotnet test Persistence'
+  inputs:
+    command: test
+    arguments: '--no-build'
+    projects: 'src\NStore.Persistence.Tests\NStore.Persistence.Tests.csproj'
+    configuration: '$(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'dotnet test Sqlite'
+  inputs:
+    command: test
+    arguments: '--no-build'
+    projects: 'src\NStore.Persistence.Sqlite.Tests\NStore.Persistence.Sqlite.Tests.csproj'
+    configuration: '$(buildConfiguration)'

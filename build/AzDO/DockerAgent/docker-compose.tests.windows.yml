@@ -1,0 +1,26 @@
+version: '2.4'
+
+services:
+  agent:
+    image: dockeragent:latest
+    environment:
+      - AZP_TOKEN=xxx
+      - AZP_AGENT_NAME=mydockeragent
+      - AZP_URL=https://dev.azure.com/gianmariaricci
+      - NSTORE_MONGODB=mongodb://mongo/nstoretest
+      - NSTORE_MSSQL=Server=mssql;user id=sa;password=sqlPw3$secure
+
+  mssql:
+    image: mssqlon2019:latest
+    environment:
+      - sa_password=sqlPw3$secure
+      - ACCEPT_EULA=Y
+
+    ports:
+      - "1433:1433"
+
+  mongo:
+    platform: linux
+    image: mongo
+    ports:
+      - "27017:27017"
