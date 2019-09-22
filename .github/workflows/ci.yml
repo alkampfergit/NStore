@@ -4,22 +4,35 @@ on: [push]
 
 jobs:
   build:
+    env:
+      PACK: false
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       max-parallel: 2
+        
       matrix:
-        dotnet: [ '2.2.401'] #, '2.2.301', '3.0.100-preview9-014004' ]
-        os: ['ubuntu-latest', ' 	windows-2016'] #['windows-latest', 'ubuntu-latest', 'macOS-latest']
+        dotnet: [ '2.2.401', '3.0.100-rc1-014190'] #, '2.2.301', '3.0.100-preview9-014004' ]
+        os: ['ubuntu-latest', 'windows-2016'] #['windows-latest', 'ubuntu-latest', 'macOS-latest']
 
         include:
 
         - os: ubuntu-latest
-          mssql: 'mcr.microsoft.com/mssql/server:2017-latest-ubuntu'
-        
-        - os: windows-latest
-          mssql: 'microsoft/mssql-server-windows-developer:1709'
+          mssql: -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=sqlPw3$secure' -e 'MSSQL_PID=Developer' -p 1433:1433 --name msssql -d 'mcr.microsoft.com/mssql/server:2017-latest-ubuntu'
+          mongoContainer: -d -p 27017:27017 --name mongo mongo
           
+        - os: ubuntu-latest
+          dotnet: '3.0.100-rc1-014190'
+          PACK: true
+          
+        - os: windows-2016
+          mssql: -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=sqlPw3$secure" -e "MSSQL_PID=Developer" -p 1433:1433 --name msssql -d "microsoft/mssql-server-windows-developer"
+          mongoContainer: -p 27017:27017 --name mongodb -d "mongo:4.0-windowsservercore-ltsc2016"
+          
+        exclude:
+        - os: windows-2016
+          dotnet: '3.0.100-rc1-014190' 
+                     
     name: Build for .NET ${{ matrix.dotnet }} on ${{matrix.os }}
     steps:
       # We want the build to continue not to block at the very first error
@@ -36,10 +49,10 @@ jobs:
       run: dotnet build src/NStore.sln --configuration Release
     
     - name: Start Docker for MSSSql
-      run: docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=sqlPw3$secure' -e 'MSSQL_PID=Developer' -p 1433:1433 --name msssql -d ${{ matrix.mssql }}
+      run: docker run ${{ matrix.mssql }}
       
     - name: Start Docker for Mongodb
-      run: docker run -d -p 27017:27017 mongo
+      run: docker run ${{ matrix.mongoContainer }}
       
     - name: Dump mssql docker logs
       run: docker logs msssql
@@ -67,4 +80,9 @@ jobs:
       run: docker logs msssql
       
     - name: Run Tests - Sql Lite
+      continue-on-error: true
       run: dotnet test src/NStore.Persistence.Sqlite.Tests/NStore.Persistence.Sqlite.Tests.csproj --configuration Release --no-build 
+      
+    - name: Pack Core 
+      if: '${PACK} == true'
+      run: dotnet pack src/NStore.Core/NStore.Core.csproj
