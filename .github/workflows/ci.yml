@@ -6,10 +6,21 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
+      max-parallel: 2
       matrix:
         dotnet: [ '2.2.401'] #, '2.2.301', '3.0.100-preview9-014004' ]
-        os: ['ubuntu-latest'] #['windows-latest', 'ubuntu-latest', 'macOS-latest']
-    name: Build for .NET ${{ matrix.dotnet }}
+        os: ['ubuntu-latest', ' 	windows-2016'] #['windows-latest', 'ubuntu-latest', 'macOS-latest']
+
+        include:
+
+        - os: ubuntu-latest
+          mssql: 'mcr.microsoft.com/mssql/server:2017-latest-ubuntu'
+        
+        - os: windows-latest
+          mssql: 'microsoft/mssql-server-windows-developer:1709'
+          
+    name: Build for .NET ${{ matrix.dotnet }} on ${{matrix.os }}
     steps:
       # We want the build to continue not to block at the very first error
       # continue-on-error: true 
@@ -25,7 +36,7 @@ jobs:
       run: dotnet build src/NStore.sln --configuration Release
     
     - name: Start Docker for MSSSql
-      run: docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=sqlPw3$secure' -e 'MSSQL_PID=Developer' -p 1433:1433 --name msssql -d mcr.microsoft.com/mssql/server:2017-latest-ubuntu
+      run: docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=sqlPw3$secure' -e 'MSSQL_PID=Developer' -p 1433:1433 --name msssql -d ${{ matrix.mssql }}
       
     - name: Start Docker for Mongodb
       run: docker run -d -p 27017:27017 mongo
