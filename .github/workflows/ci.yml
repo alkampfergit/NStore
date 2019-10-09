@@ -84,5 +84,5 @@ jobs:
       run: dotnet test src/NStore.Persistence.Sqlite.Tests/NStore.Persistence.Sqlite.Tests.csproj --configuration Release --no-build 
       
     - name: Pack Core 
-      if: '${PACK} == true'
+      # if: '${PACK} == true'
       run: dotnet pack src/NStore.Core/NStore.Core.csproj
