@@ -12,7 +12,7 @@ jobs:
       max-parallel: 2
         
       matrix:
-        dotnet: [ '2.2.401', '3.0.100-rc1-014190'] #, '2.2.301', '3.0.100-preview9-014004' ]
+        dotnet: [ '2.2.401'] #, '2.2.301', '3.0.100-rc1-014190' ]
         os: ['ubuntu-latest', 'windows-2016'] #['windows-latest', 'ubuntu-latest', 'macOS-latest']
 
         include:
