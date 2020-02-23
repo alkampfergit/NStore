@@ -17,7 +17,7 @@ jobs:
         password: '${{ secrets.azure_docker_token }}'
 
     - name: Start Docker for MSSSql
-      run: docker run --name elastic -d prxmdocker.azurecr.io/elasticsearch_jarvis:1.0
+      run: docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=sqlPw3$secure' -e 'MSSQL_PID=Developer' -p 1433:1433 --name mssql -d prxmdocker.azurecr.io/sql-2019:1.0
       
     #- name: Start Docker for Mongodb
     #  run: docker run -d -p 27017:27017 mongo
