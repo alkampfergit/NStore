@@ -16,11 +16,11 @@ jobs:
         username: '${{ secrets.azure_docker_user }}'
         password: '${{ secrets.azure_docker_token }}'
 
-    - name: Start Docker for MSSSql
-      run: docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=sqlPw3$secure' -e 'MSSQL_PID=Developer' -p 1433:1433 --name mssql -d prxmdocker.azurecr.io/sql-2019:1.0
+    # - name: Start Docker for MSSSql
+    #   run: docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=sqlPw3$secure' -e 'MSSQL_PID=Developer' -p 1433:1433 --name mssql -d prxmdocker.azurecr.io/sql-2019:1.0
       
-    - name: Start Docker for Mongodb
-      run: docker run -d -p 27017:27017 prxmdocker.azurecr.io/mongodb-2019:1.0
+    # - name: Start Docker for Mongodb
+    #   run: docker run -d -p 27017:27017 prxmdocker.azurecr.io/mongodb-2019:1.0
 
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
@@ -28,11 +28,11 @@ jobs:
         dotnet-version: 2.2.108
 
     - name: Run build with powershell
-      run: powershell .\build.ps1 -ScriptArgs '-testoutput=".\test_output" -NSTORE_MSSQL_INSTANCE="$(NSTORE_MSSQL)"  -NSTORE_MSSQL="Server=localhost;user id=sa;password=sqlPw3$secure"' -target ReleaseBuild -configuration release
+      run: powershell .\build.ps1 -ScriptArgs '-testoutput=".\test_output" -NSTORE_MSSQL_INSTANCE="Server=127.0.0.1;user id=sa;password=sqlPw3$secure;Initial Catalog=nstore"  -NSTORE_MSSQL="Server=localhost;user id=sa;password=sqlPw3$secure"' -target ReleaseBuild -configuration release
       env:
         DOTNETCORE_MULTITARGET: true
         NSTORE_MONGODB: mongodb://localhost:27017/nstore
-        
+        NSTORE_MSSQL: Server=localhost\SQLEXPRESS;user id=sa;password=
       
     #- name: Dump mssql docker logs
     #  run: docker logs msssql 
