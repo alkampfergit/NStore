@@ -18,7 +18,7 @@ jobs:
           mssql: 'mcr.microsoft.com/mssql/server:2017-latest-ubuntu'
         
         - os: windows-latest
-          mssql: 'microsoft/mssql-server-windows-developer:1709'
+          mssql: 'prxmdocker.azurecr.io/sql-2019:1.0'
           
     name: Build for .NET ${{ matrix.dotnet }} on ${{matrix.os }}
     steps:
@@ -27,6 +27,12 @@ jobs:
       
     - uses: actions/checkout@v1
     
+    - uses: azure/docker-login@v1
+    with:
+      login-server: 'prxmdocker.azurecr.io' 
+      username: '${{ secrets.azure_docker_user }}'
+      password: '${{ secrets.azure_docker_token }}'
+
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
