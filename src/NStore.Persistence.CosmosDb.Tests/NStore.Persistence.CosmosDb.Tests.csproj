@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\NStore.Core\NStore.Core.csproj" />
+    <ProjectReference Include="..\NStore.Persistence.CosmosDb\NStore.Persistence.CosmosDb.csproj" />
+    <ProjectReference Include="..\NStore.Tpl\NStore.Tpl.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.17.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="2.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.5.0" />
+    <PackageReference Include="xunit" Version="2.3.1" />
+    <DotNetCliToolReference Include="dotnet-xunit" Version="2.3.0-beta1-build3642" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.3.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\NStore.Persistence.Tests\batch_writes_test.cs" Link="batch_writes_test.cs" />
+    <Compile Include="..\NStore.Persistence.Tests\ConcurrencyTests.cs" Link="ConcurrencyTests.cs" />
+    <Compile Include="..\NStore.Persistence.Tests\DefaultSnapshotStoreTests.cs">
+      <Link>DefaultSnapshotStoreTests.cs</Link>
+    </Compile>
+    <Compile Include="..\NStore.Persistence.Tests\PersistenceDebugExtensions.cs" Link="PersistenceDebugExtensions.cs" />
+    <Compile Include="..\NStore.Persistence.Tests\PersistenceFixture.cs">
+      <Link>PersistenceFixture.cs</Link>
+    </Compile>
+    <Compile Include="..\NStore.Persistence.Tests\StreamTests.cs">
+      <Link>StreamTests.cs</Link>
+    </Compile>
+    <Compile Include="..\NStore.Persistence.Tests\TestLoggerFactory.cs" Link="TestLoggerFactory.cs" />
+  </ItemGroup>
+</Project>
