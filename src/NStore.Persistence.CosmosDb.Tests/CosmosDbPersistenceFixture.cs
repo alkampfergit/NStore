@@ -1,10 +1,7 @@
 ﻿using NStore.Core.Persistence;
 using NStore.Persistence.CosmosDb;
-using System;
-using System.Reflection;
 using System.Threading;
 using Xunit;
-
 
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
 
@@ -21,6 +18,10 @@ namespace NStore.Persistence.Tests
         protected internal IPersistence Create(bool dropOnInit)
         {
             _options = GetCosmosPersistenceOptions();
+            if (dropOnInit)
+            {
+                _options.SetDropOnInit();
+            }
             _cosmosDbPersistence = CreatePersistence(_options);
             return _cosmosDbPersistence;
         }
@@ -30,7 +31,7 @@ namespace NStore.Persistence.Tests
             var options = new CosmosDbPersistenceOptions();
             return options.SetConnection(
                 "https://nstore.documents.azure.com", //this is the address of the database.
-                "" //put here your key, but pay attention not to commit the key.
+                "P60tqZOTN3TINvYV0A2q0jFRcOaetQQedNxLPi9IibEl1382TKyduN3tqquzpLT9hqyckY724pu4ZoJisM66zg==" //put here your key, but pay attention not to commit the key.
             );
         }
 

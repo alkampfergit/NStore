@@ -377,12 +377,28 @@ namespace NStore.Persistence.Tests
             byte[] payload = null;
             await Store.ReadForwardAsync("BA", 0, new LambdaSubscription(data =>
             {
+                Assert.IsType<byte[]>(data.Payload);
                 payload = (byte[])data.Payload;
                 return Task.FromResult(true);
             })).ConfigureAwait(false);
 
             var text = System.Text.Encoding.UTF8.GetString(payload);
             Assert.Equal("this is a test", text);
+        }
+    }
+
+    public class StringPersistenceTest : BasePersistenceTest
+    {
+        [Fact]
+        public async Task InsertStringPayload()
+        {
+            await Store.AppendAsync("BA", 0, "this is a test").ConfigureAwait(false);
+            await Store.ReadForwardAsync("BA", 0, new LambdaSubscription(data =>
+            {
+                Assert.IsType<string>(data.Payload);
+                Assert.Equal("this is a test", data.Payload);
+                return Task.FromResult(true);
+            })).ConfigureAwait(false);
         }
     }
 
@@ -480,7 +496,6 @@ namespace NStore.Persistence.Tests
 
     public class DeleteStreamTest_2 : DeleteStreamTest
     {
-
 		[Fact]
 		public async Task delete_invalid_stream_should_not_throw_exception()
 		{
@@ -524,7 +539,6 @@ namespace NStore.Persistence.Tests
 
     public class DeleteStreamTest_5 : DeleteStreamTest
     {
-
         [Fact]
         public async Task should_delete_middle()
         {

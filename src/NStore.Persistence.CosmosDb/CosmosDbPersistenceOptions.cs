@@ -1,22 +1,35 @@
-﻿using Microsoft.Azure.Cosmos;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using NStore.Core.Logging;
 
 namespace NStore.Persistence.CosmosDb
 {
     public class CosmosDbPersistenceOptions
     {
-        public string EndpointUrl { get; internal set; }
-        public string PrimaryKey { get; internal set; }
-        public string DatabaseName { get; internal set; } = "Nstore";
-        public string ContainerName { get; internal set; } = "Commits";
-        public bool UseLocalSequence { get; internal set; } = true;
+        public INStoreLoggerFactory LoggerFactory { get; private set; } = NStoreNullLoggerFactory.Instance;
 
-        public CosmosDbPersistenceOptions SetConnection(string endpointUrl, string primaryKey) 
+        public string EndpointUrl { get; private set; }
+        public string PrimaryKey { get; private set; }
+        public string DatabaseName { get; private set; } = "Nstore";
+        public string ContainerName { get; private set; } = "Commits";
+        public bool UseLocalSequence { get; private set; } = true;
+
+        public bool DropOnInit { get; private set; }
+
+        public CosmosDbPersistenceOptions SetConnection(string endpointUrl, string primaryKey)
         {
             EndpointUrl = endpointUrl;
             PrimaryKey = primaryKey;
+            return this;
+        }
+
+        public CosmosDbPersistenceOptions SetLoggingFacctory(INStoreLoggerFactory nStoreLoggerFactory)
+        {
+            LoggerFactory = nStoreLoggerFactory;
+            return this;
+        }
+
+        public CosmosDbPersistenceOptions SetDropOnInit() 
+        {
+            DropOnInit = true;
             return this;
         }
     }

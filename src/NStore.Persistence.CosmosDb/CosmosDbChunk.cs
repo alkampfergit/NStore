@@ -3,9 +3,9 @@ using System;
 
 namespace NStore.Persistence.CosmosDb
 {
-    public class ComsosDbChunk : ICosmosDbChunk
+    public class CosmosDbChunk : ICosmosDbChunk
     {
-        public ComsosDbChunk(long position, string partitionId, long index, object payload, string operationId)
+        public CosmosDbChunk(long position, string partitionId, long index, object payload, string operationId)
         {
             Position = position;
             Id = position.ToString();

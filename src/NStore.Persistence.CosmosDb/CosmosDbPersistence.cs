@@ -1,6 +1,9 @@
 ﻿using Microsoft.Azure.Cosmos;
+using Microsoft.Azure.Cosmos.Linq;
+using NStore.Core.Logging;
 using NStore.Core.Persistence;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,16 +20,12 @@ namespace NStore.Persistence.CosmosDb
 
         #region Custom properties
 
-        // The Cosmos client instance
-        private CosmosClient _cosmosClient;
-
-        // The database we will create
-        private Database _database;
-
         // The container we will create.
         private Container _container;
 
         private long _sequence = 0;
+
+        private INStoreLogger _logger;
 
         #endregion
 
@@ -34,10 +33,26 @@ namespace NStore.Persistence.CosmosDb
 
         public async Task InitAsync(CancellationToken cancellationToken)
         {
-            _cosmosClient = new CosmosClient(_options.EndpointUrl, _options.PrimaryKey);
-            _database = await _cosmosClient.CreateDatabaseIfNotExistsAsync(_options.DatabaseName, cancellationToken: cancellationToken);
+            var cosmosClient = new CosmosClient(_options.EndpointUrl, _options.PrimaryKey);
 
-            var containerBuilder = _database
+            _logger = _options.LoggerFactory?.CreateLogger($"CosmosDbPersistence-{_options.EndpointUrl}") ?? NStoreNullLogger.Instance;
+            if (_options.DropOnInit)
+            {
+                var db = cosmosClient.GetDatabase(_options.DatabaseName);
+                if (db != null)
+                {
+                    try
+                    {
+                        await db.DeleteAsync().ConfigureAwait(false);
+                    }
+                    catch (CosmosException)
+                    {
+                    }
+                }
+            }
+            Database database = await cosmosClient.CreateDatabaseIfNotExistsAsync(_options.DatabaseName, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            var containerBuilder = database
                 .DefineContainer(_options.ContainerName, "/cosmosDbPartition")
                 .WithUniqueKey()
                     .Path("/partitionId")
@@ -60,7 +75,7 @@ namespace NStore.Persistence.CosmosDb
         public async Task<IChunk> AppendAsync(string partitionId, long index, object payload, string operationId, CancellationToken cancellationToken)
         {
             long id = await GetNextId(1, cancellationToken).ConfigureAwait(false);
-            var chunk = new ComsosDbChunk(
+            var chunk = new CosmosDbChunk(
                 id,
                 partitionId,
                 index,
@@ -104,57 +119,44 @@ namespace NStore.Persistence.CosmosDb
                  CancellationToken cancellationToken
              )
         {
-            var filter = Builders<TChunk>.Filter.And(
-                Builders<TChunk>.Filter.Eq(x => x.PartitionId, partitionId),
-                Builders<TChunk>.Filter.Gte(x => x.Index, fromLowerIndexInclusive),
-                Builders<TChunk>.Filter.Lte(x => x.Index, toUpperIndexInclusive)
-            );
-
-            var sort = Builders<TChunk>.Sort.Ascending(x => x.Index);
-            var options = new FindOptions<TChunk>() { Sort = sort };
-            if (limit != int.MaxValue)
-            {
-                options.Limit = limit;
-            }
+           var query = _container.GetItemLinqQueryable<CosmosDbChunk>()
+                .Where(c => c.PartitionId == partitionId
+                  && c.Index >= fromLowerIndexInclusive
+                  && c.Index <= toUpperIndexInclusive)
+                .OrderBy(x => x.Index);
 
             await PushToSubscriber(
+                query,
                 fromLowerIndexInclusive,
                 subscription,
-                options,
-                filter,
-                false, cancellationToken).ConfigureAwait(false);
+                false).ConfigureAwait(false);
         }
 
         private async Task PushToSubscriber(
+            IQueryable<CosmosDbChunk> query,
             long start,
             ISubscription subscription,
-            FindOptions<TChunk> options,
-            FilterDefinition<TChunk> filter,
-            bool broadcastPosition,
-            CancellationToken cancellationToken)
+            bool broadcastPosition)
         {
             long positionOrIndex = 0;
             await subscription.OnStartAsync(start).ConfigureAwait(false);
 
             try
             {
-                using (var cursor = await _chunks.FindAsync(filter, options, cancellationToken).ConfigureAwait(false))
+                var iterator = query.ToFeedIterator<CosmosDbChunk>();
+                while (iterator.HasMoreResults)
                 {
-                    while (await cursor.MoveNextAsync(cancellationToken).ConfigureAwait(false))
+                    var block = await iterator.ReadNextAsync().ConfigureAwait(false);
+                    foreach (var chunk in block)
                     {
-                        var batch = cursor.Current;
-                        foreach (var b in batch)
+                        if (!await subscription.OnNextAsync(chunk).ConfigureAwait(false))
                         {
-                            positionOrIndex = broadcastPosition ? b.Position : b.Index;
-                            b.ReplacePayload(_mongoPayloadSerializer.Deserialize(b.Payload));
-                            if (!await subscription.OnNextAsync(b).ConfigureAwait(false))
-                            {
-                                await subscription.StoppedAsync(positionOrIndex).ConfigureAwait(false);
-                                return;
-                            }
+                            positionOrIndex = broadcastPosition ? chunk.Position : chunk.Index;
+                            await subscription.StoppedAsync(positionOrIndex).ConfigureAwait(false);
+                            return;
                         }
                     }
-                }
+                }    
 
                 await subscription.CompletedAsync(positionOrIndex).ConfigureAwait(false);
             }
@@ -170,14 +172,35 @@ namespace NStore.Persistence.CosmosDb
             }
         }
 
-        public Task<long> ReadLastPositionAsync(CancellationToken cancellationToken)
+        public async Task<long> ReadLastPositionAsync(CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            var lastPositionQuery = _container.GetItemLinqQueryable<CosmosDbChunk>()
+                .OrderByDescending(x => x.Position)
+                .Select(x => x.Position);
+
+            var iterator = lastPositionQuery.ToFeedIterator<long>();
+
+            if (iterator.HasMoreResults)
+            {
+                var feedIterator = await iterator.ReadNextAsync().ConfigureAwait(false);
+                return feedIterator.FirstOrDefault();
+            }
+            return 0;
         }
 
-        public Task<IChunk> ReadSingleBackwardAsync(string partitionId, long fromUpperIndexInclusive, CancellationToken cancellationToken)
+        public async Task<IChunk> ReadSingleBackwardAsync(string partitionId, long fromUpperIndexInclusive, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            var lastChunkQuery = _container.GetItemLinqQueryable<CosmosDbChunk>()
+               .OrderByDescending(x => x.Position);
+
+            var iterator = lastChunkQuery.ToFeedIterator<CosmosDbChunk>();
+
+            if (iterator.HasMoreResults)
+            {
+                var feedIterator = await iterator.ReadNextAsync().ConfigureAwait(false);
+                return feedIterator.FirstOrDefault();
+            }
+            return null;
         }
 
         #endregion
@@ -194,8 +217,8 @@ namespace NStore.Persistence.CosmosDb
             throw new NotImplementedException("Still not implemented");
         }
 
-        private async Task<ComsosDbChunk> InternalPersistAsync(
-            ComsosDbChunk chunk,
+        private async Task<CosmosDbChunk> InternalPersistAsync(
+            CosmosDbChunk chunk,
             CancellationToken cancellationToken = default(CancellationToken)
         )
         {
